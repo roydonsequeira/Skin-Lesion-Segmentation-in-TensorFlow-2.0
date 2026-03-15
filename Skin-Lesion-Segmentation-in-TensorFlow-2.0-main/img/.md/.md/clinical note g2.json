@@ -1,0 +1,660 @@
+{
+    "name": "Clinical Note Generation - v3 (reinhealth.ai)",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "clinical-note/start",
+          "responseMode": "lastNode",
+          "options": {}
+        },
+        "name": "Webhook Trigger - Start Clinical Note",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [250, 200]
+      },
+      {
+        "parameters": {
+          "values": {
+            "string": [
+              { "name": "provider_email", "value": "={{$json[\"provider_email\"] || $json[\"user_email\"] || ''}}" },
+              { "name": "patient_email", "value": "={{$json[\"patient_email\"] || ''}}" },
+              { "name": "mode", "value": "={{$json[\"mode\"] || 'recorded'}}" },
+              { "name": "audio_url", "value": "={{$json[\"audio_url\"] || ''}}" },
+              { "name": "appointment_id", "value": "={{$json[\"appointment_id\"] || ''}}" }
+            ]
+          },
+          "options": {}
+        },
+        "name": "Set - Normalize Input",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 1,
+        "position": [520, 200]
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "tableId": "Providers",
+          "filter": "={{`provider_email = '${$json.provider_email}'`}}",
+          "limit": 1
+        },
+        "name": "DataTables - Get Provider",
+        "type": "n8n-nodes-base.dataTables",
+        "typeVersion": 1,
+        "position": [820, 200]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "number": [
+              {
+                "value1": "={{$items('DataTables - Get Provider').length}}",
+                "operation": "equal",
+                "value2": 0
+              }
+            ]
+          }
+        },
+        "name": "IF - Provider Found?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [1120, 200]
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "schema": "public",
+          "table": "workflow_errors",
+          "columns": "workflow_name, node_name, error_stage, error_message, payload, created_at",
+          "values": "={{['Clinical Note Generation - v3', 'DataTables - Get Provider', 'Verification', 'Provider not found', JSON.stringify($json), new Date().toISOString()]}}"
+        },
+        "name": "Postgres - Log Error (Provider not found)",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [1400, 120],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "operation": "sendEmail",
+          "to": "ops@reinhealth.ai",
+          "subject": "Clinical Note Workflow Error - Provider not found",
+          "message": "Provider lookup failed for payload: {{$json | json}}. Please investigate.",
+          "additionalFields": {}
+        },
+        "name": "Gmail - Alert Ops (Provider missing)",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 1,
+        "position": [1400, 300],
+        "credentials": { "gmailOAuth2Api": { "id": "<GMAIL_CREDENTIAL_ID>", "name": "Gmail OAuth2 API" } }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "SELECT id, name, email FROM patients WHERE email = $1 LIMIT 1;",
+          "queryParametersUi": {
+            "parameter": [
+              { "name": "email", "value": "={{$json.patient_email}}" }
+            ]
+          }
+        },
+        "name": "Postgres - Verify Patient",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [1120, 420],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "number": [
+              {
+                "value1": "={{$items('Postgres - Verify Patient').length}}",
+                "operation": "equal",
+                "value2": 0
+              }
+            ]
+          }
+        },
+        "name": "IF - Patient Verified?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [1420, 420]
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "schema": "public",
+          "table": "workflow_errors",
+          "columns": "workflow_name, node_name, error_stage, error_message, payload, created_at",
+          "values": "={{['Clinical Note Generation - v3', 'Postgres - Verify Patient', 'Verification', 'Patient not found', JSON.stringify($json), new Date().toISOString()]}}"
+        },
+        "name": "Postgres - Log Error (Patient not found)",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [1700, 340],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "operation": "sendEmail",
+          "to": "ops@reinhealth.ai",
+          "subject": "Clinical Note Workflow Error - Patient not found",
+          "message": "Patient verification failed for payload: {{$json | json}}. Please investigate.",
+          "additionalFields": {}
+        },
+        "name": "Gmail - Alert Ops (Patient missing)",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 1,
+        "position": [1700, 520],
+        "credentials": { "gmailOAuth2Api": { "id": "<GMAIL_CREDENTIAL_ID>", "name": "Gmail OAuth2 API" } }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "combineOperation": "any",
+            "string": [
+              { "value1": "={{ ($json.mode || '').toString().toLowerCase().trim() }}", "operation": "equal", "value2": "audio" },
+              { "value1": "={{ $json['audio_url'] || ($json.body && $json.body.audio_url) || '' }}", "operation": "isNotEmpty" },
+              { "value1": "={{ $json['audio_file'] || ($json.body && $json.body.audio_file) || $json.file || '' }}", "operation": "isNotEmpty" }
+            ]
+          }
+        },
+        "name": "IF - Has Audio?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [1220, 700]
+      },
+      {
+        "parameters": {
+          "url": "https://speech.googleapis.com/v1/speech:recognize?key={{$credentials.googleCloud.apiKey}}",
+          "options": {},
+          "responseFormat": "json",
+          "jsonParameters": true,
+          "bodyParametersJson": "={\n  \"config\": {\n    \"encoding\": \"LINEAR16\",\n    \"sampleRateHertz\": 16000,\n    \"languageCode\": \"en-US\",\n    \"enableSpeakerDiarization\": true,\n    \"diarizationSpeakerCount\": 2\n  },\n  \"audio\": {\n    \"uri\": $json[\"audio_url\"] ? $json[\"audio_url\"] : \"\"\n  }\n}"
+        },
+        "name": "HTTP Request - Google Speech-to-Text",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 1,
+        "position": [1500, 700],
+        "credentials": { "httpHeaderAuth": { "id": "<GOOGLE_CLOUD_HTTP_CRED>", "name": "GoogleCloudHTTP" } }
+      },
+      {
+        "parameters": {
+          "functionCode": "// Parse Google STT response\\nconst results = $json.results || [];\\nlet transcript = '';\\nlet speakerSegments = $json.speakerLabels || $json.parsedSpeakerLabels || [];\\nif(results.length) {\\n  for(const res of results) {\\n    if(res.alternatives && res.alternatives.length) {\\n      transcript += res.alternatives[0].transcript + ' ';\\n    }\\n  }\\n}\\nreturn [{ json: { transcript: transcript.trim(), speakerSegments } }];"
+        },
+        "name": "Function - Parse STT Response",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [1740, 700]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Clean transcript\\nlet text = $json.transcript || '';\\nconst fillers = ['um','uh','you know','like','so','hmm','mm'];\\nfor (const f of fillers) {\\n  const re = new RegExp('\\\\\\\\b' + f + '\\\\\\\\b', 'gi');\\n  text = text.replace(re, '');\\n}\\ntext = text.replace(/\\\\\\\\s+/g, ' ').trim();\\nreturn [{ json: { cleaned_transcript: text, speakerSegments: $json.speakerSegments } }];"
+        },
+        "name": "Function - Clean / Normalize Transcript",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [1980, 700]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Build prompt for Gemma3\\nconst patientSummary = $json.patient_summary || '';\nconst provider_email = $json.provider_email || '';\nconst transcript = $json.cleaned_transcript || '';\nconst prompt = `You are a medical scribe. Create a structured SOAP note in JSON ONLY with keys: subjective, objective, assessment, plan, summary, suggested_codes.\\nPatient Summary: ${patientSummary}\\nProvider Email: ${provider_email}\\nTranscript: ${transcript}\\nReturn JSON only.`;\nreturn [{ json: { prompt } }];"
+        },
+        "name": "Function - Build LLM Prompt",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [2220, 700]
+      },
+      {
+        "parameters": {
+          "url": "http://localhost:11434/api/generate",
+          "options": {},
+          "responseFormat": "json",
+          "jsonParameters": true,
+          "bodyParametersJson": "={\n  \"model\": \"gemma3:4b\",\n  \"prompt\": $json.prompt,\n  \"stream\": false\n}"
+        },
+        "name": "HTTP Request - Gemma3 (Generate SOAP Note)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 1,
+        "position": [2460, 700]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Normalize Gemma output safely\\nlet note = {};\nif($json.response) {\n  try {\n    note = JSON.parse($json.response);\n  } catch (err) {\n    note.raw_llm_text = $json.response;\n    note.parsing_error = err.message;\n  }\n} else if($json[0] && $json[0].generated_text) {\n  try { note = JSON.parse($json[0].generated_text); } catch(e) { note.raw_llm_text = $json[0].generated_text; note.parsing_error = e.message; }\n}\nnote.generated_at = new Date().toISOString();\nnote.provider_email = $json.provider_email || '';\nreturn [{ json: note }];"
+        },
+        "name": "Function - Normalize Gemma Output",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [2700, 700]
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "schema": "public",
+          "table": "clinical_notes",
+          "columns": "patient_id, appointment_id, provider_email, note_json, raw_llm_text, status, created_at, signed",
+          "values": "={{[$items('Postgres - Verify Patient')[0].json.id || null, $json[\"appointment_id\"] || '', $json[\"provider_email\"] || '', JSON.stringify($json), $json.raw_llm_text || null, 'generated', new Date().toISOString(), false]}}"
+        },
+        "name": "Postgres - Insert Clinical Note",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [2940, 700],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "schema": "public",
+          "table": "llm_calls",
+          "columns": "workflow_name, model, prompt, response, created_at",
+          "values": "={{['Clinical Note Generation - v3', 'gemma3:4b', $json.prompt || '', JSON.stringify($json) || '', new Date().toISOString()]}}"
+        },
+        "name": "Postgres - Log LLM Call",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [2820, 520],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {},
+        "name": "Manual Trigger - Provider Review",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [3220, 960]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "clinical-note/approve",
+          "responseMode": "lastNode",
+          "options": {}
+        },
+        "name": "Webhook Trigger - Provider Approval",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [3220, 760]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Normalize approval payload\\n// expected body: { note_id: 123, action: 'approve' | 'reject' | 'send', provider_email: 'doc@example.com' }\\nconst note_id = $json.note_id || $json.body && $json.body.note_id || null;\\nconst action = $json.action || $json.body && $json.body.action || '';\\nreturn [{ json: { note_id, action, provider_email: $json.provider_email || $json.body && $json.body.provider_email || '' } }];"
+        },
+        "name": "Function - Parse Approval",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [3460, 760]
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "schema": "public",
+          "table": "clinical_notes",
+          "updateKey": "id",
+          "updateKeyValue": "={{$json.note_id}}",
+          "columns": "status, approved_by, approved_at",
+          "values": "={{[$json.action === 'approve' ? 'approved' : $json.action, $json.provider_email || '', new Date().toISOString()]}}"
+        },
+        "name": "Postgres - Mark Note Approved",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [3700, 760],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "functionCode": "// Build HTML for PDF generation from clinical_note row\\n// We'll expect that the incoming json contains the note object (from previous insert) or we should fetch it by id if needed.\\nconst note = $json.note || {};\nconst patient = { name: $json.patient_name || '', email: $json.patient_email || '' };\nconst provider = { email: $json.provider_email || '' };\nconst html = `<!doctype html><html><head><meta charset=\\\"utf-8\\\"><title>Clinical Note</title></head><body><h1>Clinical Note Summary</h1><p><strong>Patient:</strong> ${patient.name} (${patient.email})</p><p><strong>Provider:</strong> ${provider.email}</p><h2>Summary</h2><pre>${note.summary || ''}</pre><h2>Subjective</h2><pre>${note.subjective || ''}</pre><h2>Objective</h2><pre>${note.objective || ''}</pre><h2>Assessment</h2><pre>${note.assessment || ''}</pre><h2>Plan</h2><pre>${note.plan || ''}</pre></body></html>`;\nreturn [{ json: { html_content: html, note } }];"
+        },
+        "name": "Function - Build HTML for PDF (post-approval)",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [3220, 1080]
+      },
+      {
+        "parameters": {
+          "url": "http://localhost:4000/html2pdf",
+          "method": "POST",
+          "jsonParameters": true,
+          "options": {},
+          "bodyParametersJson": "={ \"html\": $json.html_content }"
+        },
+        "name": "HTTP Request - HTML2PDF Microservice",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 1,
+        "position": [3460, 1080]
+      },
+      {
+        "parameters": {
+          "functionCode": "// Attach PDF binary property\\nlet pdfBase64 = $json.pdf_base64 || $json.pdf || $json.pdf_base64 || null;\\nif(!pdfBase64 && $json.body && $json.body.pdf_base64) pdfBase64 = $json.body.pdf_base64;\\nif(!pdfBase64) { throw new Error('PDF microservice did not return pdf_base64'); }\\nconst buffer = Buffer.from(pdfBase64, 'base64');\\nreturn [{ json: {}, binary: { 'data.pdf': { data: buffer.toString('base64'), mimeType: 'application/pdf', fileName: 'clinical_note.pdf' } } }];"
+        },
+        "name": "Function - Create PDF Binary",
+        "type": "n8n-nodes-base.function",
+        "typeVersion": 1,
+        "position": [3700, 1080]
+      },
+      {
+        "parameters": {
+          "operation": "synthesize",
+          "text": "={{$json.note && $json.note.summary ? $json.note.summary : ($json.summary || ('Clinical summary for ' + ($json.patient_email || 'the patient'))) }}",
+          "voice": "en-US-Wavenet-D",
+          "audioEncoding": "MP3",
+          "sampleRateHertz": 24000
+        },
+        "name": "Google TTS - Generate Summary Audio",
+        "type": "n8n-nodes-base.googleTextToSpeech",
+        "typeVersion": 1,
+        "position": [3940, 1080],
+        "credentials": { "googleCloud": { "id": "<GOOGLE_CLOUD_CRED_ID>", "name": "Google Cloud" } }
+      },
+      {
+        "parameters": {
+          "operation": "set",
+          "values": {
+            "string": [
+              { "name": "greeting", "value": "={{'Attached: clinical_note.pdf'}}" }
+            ]
+          }
+        },
+        "name": "Set - Email Body",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 1,
+        "position": [4180, 1080]
+      },
+      {
+        "parameters": {
+          "operation": "sendEmail",
+          "to": "={{$json.patient_email}}",
+          "subject": "Clinical Note Summary - {{$json.patient_name || $json.patient_email}}",
+          "message": "={{$json.greeting + '\\n\\n' + ($json.note && $json.note.summary || $json.summary || '')}}",
+          "additionalFields": {}
+        },
+        "name": "Gmail - Send Clinical Note (reinhealth.ai)",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 1,
+        "position": [4420, 1080],
+        "credentials": { "gmailOAuth2Api": { "id": "<GMAIL_CREDENTIAL_ID>", "name": "Gmail OAuth2 API" } }
+      },
+      {
+        "parameters": {
+          "operation": "update",
+          "schema": "public",
+          "table": "clinical_notes",
+          "updateKey": "id",
+          "updateKeyValue": "={{$json.note_id || $json.id || $json[\"id\"]}}",
+          "columns": "signed, signed_at, status",
+          "values": "={{[true, new Date().toISOString(), 'sent']}}"
+        },
+        "name": "Postgres - Finalize & Mark Sent",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [4700, 1080],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "url": "={{$json.billingWebhookUrl || 'https://example.com/billing/trigger'}}",
+          "options": {},
+          "responseFormat": "json",
+          "jsonParameters": true,
+          "bodyParametersJson": "={ \"patient_id\": $items('Postgres - Verify Patient')[0].json.id, \"note_id\": $json.note_id || $json.id || $json[\"id\"], \"event\": \"clinical_note_sent\" }"
+        },
+        "name": "HTTP Request - Trigger Billing & Coding Workflow",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 1,
+        "position": [4940, 1080]
+      },
+      {
+        "parameters": {
+          "operation": "insert",
+          "schema": "public",
+          "table": "workflow_errors",
+          "columns": "workflow_name, node_name, error_stage, error_message, payload, created_at",
+          "values": "={{['Clinical Note Generation - v3', $json.failed_node || 'unknown', $json.error_stage || 'unknown', $json.error_message || 'unknown', JSON.stringify($json.payload) || JSON.stringify($json), new Date().toISOString()]}}"
+        },
+        "name": "Postgres - Log Error (Global)",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 1,
+        "position": [2640, 1320],
+        "credentials": { "postgres": { "id": "<POSTGRES_CREDENTIAL_ID>", "name": "Postgres" } }
+      },
+      {
+        "parameters": {
+          "operation": "sendEmail",
+          "to": "ops@reinhealth.ai",
+          "subject": "Clinical Note Workflow Error (global)",
+          "message": "={{'Error: ' + $json.error_message + '\\nFailed node: ' + ($json.failed_node || 'unknown') + '\\nStage: ' + ($json.error_stage || 'unknown') + '\\nPayload: ' + (JSON.stringify($json.payload) || '{}')}}",
+          "additionalFields": {}
+        },
+        "name": "Gmail - Alert Ops (Global)",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 1,
+        "position": [2880, 1320],
+        "credentials": { "gmailOAuth2Api": { "id": "<GMAIL_CREDENTIAL_ID>", "name": "Gmail OAuth2 API" } }
+      }
+    ],
+    "connections": {
+      "Webhook Trigger - Start Clinical Note": {
+        "main": [
+          [
+            { "node": "Set - Normalize Input", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Set - Normalize Input": {
+        "main": [
+          [
+            { "node": "DataTables - Get Provider", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "DataTables - Get Provider": {
+        "main": [
+          [
+            { "node": "IF - Provider Found?", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "IF - Provider Found?": {
+        "main": [
+          [
+            { "node": "Postgres - Log Error (Provider not found)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Provider missing)", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Verify Patient", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Postgres - Verify Patient": {
+        "main": [
+          [
+            { "node": "IF - Patient Verified?", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "IF - Patient Verified?": {
+        "main": [
+          [
+            { "node": "Postgres - Log Error (Patient not found)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Patient missing)", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "IF - Has Audio?", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "IF - Has Audio?": {
+        "main": [
+          [
+            { "node": "HTTP Request - Google Speech-to-Text", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Function - Build LLM Prompt", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "HTTP Request - Google Speech-to-Text": {
+        "main": [
+          [
+            { "node": "Function - Parse STT Response", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Parse STT Response": {
+        "main": [
+          [
+            { "node": "Function - Clean / Normalize Transcript", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Clean / Normalize Transcript": {
+        "main": [
+          [
+            { "node": "Function - Build LLM Prompt", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Build LLM Prompt": {
+        "main": [
+          [
+            { "node": "HTTP Request - Gemma3 (Generate SOAP Note)", "type": "main", "index": 0 },
+            { "node": "Postgres - Log LLM Call", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "HTTP Request - Gemma3 (Generate SOAP Note)": {
+        "main": [
+          [
+            { "node": "Function - Normalize Gemma Output", "type": "main", "index": 0 },
+            { "node": "Postgres - Log LLM Call", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Normalize Gemma Output": {
+        "main": [
+          [
+            { "node": "Postgres - Insert Clinical Note", "type": "main", "index": 0 },
+            { "node": "Postgres - Log LLM Call", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Postgres - Insert Clinical Note": {
+        "main": [
+          [
+            { "node": "Manual Trigger - Provider Review", "type": "main", "index": 0 },
+            { "node": "Webhook Trigger - Provider Approval", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Webhook Trigger - Provider Approval": {
+        "main": [
+          [
+            { "node": "Function - Parse Approval", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Parse Approval": {
+        "main": [
+          [
+            { "node": "Postgres - Mark Note Approved", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Postgres - Mark Note Approved": {
+        "main": [
+          [
+            { "node": "Function - Build HTML for PDF (post-approval)", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Build HTML for PDF (post-approval)": {
+        "main": [
+          [
+            { "node": "HTTP Request - HTML2PDF Microservice", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "HTTP Request - HTML2PDF Microservice": {
+        "main": [
+          [
+            { "node": "Function - Create PDF Binary", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Function - Create PDF Binary": {
+        "main": [
+          [
+            { "node": "Google TTS - Generate Summary Audio", "type": "main", "index": 0 },
+            { "node": "Gmail - Send Clinical Note (reinhealth.ai)", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Google TTS - Generate Summary Audio": {
+        "main": [
+          [
+            { "node": "Set - Email Body", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 },
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Set - Email Body": {
+        "main": [
+          [
+            { "node": "Gmail - Send Clinical Note (reinhealth.ai)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Gmail - Send Clinical Note (reinhealth.ai)": {
+        "main": [
+          [
+            { "node": "Postgres - Finalize & Mark Sent", "type": "main", "index": 0 },
+            { "node": "Postgres - Log Error (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "Postgres - Finalize & Mark Sent": {
+        "main": [
+          [
+            { "node": "HTTP Request - Trigger Billing & Coding Workflow", "type": "main", "index": 0 }
+          ],
+          [
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      },
+      "HTTP Request - Trigger Billing & Coding Workflow": {
+        "main": [
+          [
+            { "node": "Gmail - Alert Ops (Global)", "type": "main", "index": 0 }
+          ]
+        ]
+      }
+    }
+  }
+  

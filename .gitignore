@@ -1,0 +1,88 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Model and data (large files – use Git LFS or host elsewhere)
+*.h5
+*.hdf5
+*.pth
+*.pt
+*.onnx
+*.pb
+*.pkl
+*.pickle
+model/
+models/
+checkpoints/
+weights/
+
+# Dataset folders (optional – uncomment if you don't want to track data)
+# ISIC*/
+# data/
+# dataset/
+
+# Logs and outputs
+logs/
+*.log
+tensorboard/
+runs/
+files/
+results/
+customs/
+*.csv
+!requirements*.txt
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env and secrets
+.env
+.env.local
+*.key
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup

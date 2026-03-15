@@ -1,0 +1,197 @@
+{
+  "name": "Patient Registration (Demo)",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Webhook - Register",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "register",
+        "responseMode": "lastNode"
+      },
+      "webhookId": "patient-register"
+    },
+    {
+      "id": "2",
+      "name": "Generate OTP",
+      "type": "n8n-nodes-base.function",
+      "position": [480, 300],
+      "parameters": {
+        "functionCode": "const otp = Math.floor(10000000 + Math.random() * 90000000).toString();\nreturn [{ json: { ...$json, otp } }];"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Store OTP (in-memory)",
+      "type": "n8n-nodes-base.functionItem",
+      "position": [720, 300],
+      "parameters": {
+        "functionCode": "globalThis.otpStore = globalThis.otpStore || {};\nglobalThis.otpStore[$json.email] = {\n  otp: $json.otp,\n  createdAt: Date.now()\n};\nreturn $json;"
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send OTP Email",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [960, 300],
+      "parameters": {
+        "fromEmail": "royseq4@gmail.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "Your Patient Registration Verification Code",
+        "text": "Hello {{$json.first_name}},\\n\\nYour verification code is {{$json.otp}}.\\nIt will expire in 5 minutes.\\n\\nThank you,\\nStealth Healthcare",
+        "options": {}
+      },
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "Webhook - Verify",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 600],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verify",
+        "responseMode": "lastNode"
+      },
+      "webhookId": "patient-verify"
+    },
+    {
+      "id": "6",
+      "name": "Check OTP",
+      "type": "n8n-nodes-base.if",
+      "position": [480, 600],
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json.otp}}",
+              "operation": "equal",
+              "value2": "={{(globalThis.otpStore && globalThis.otpStore[$json.email]?.otp) || ''}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "7",
+      "name": "OTP Incorrect Response",
+      "type": "n8n-nodes-base.set",
+      "position": [720, 480],
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "status", "value": "error" },
+            { "name": "message", "value": "Incorrect Verification Code" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "8",
+      "name": "Render Terms of Service",
+      "type": "n8n-nodes-base.set",
+      "position": [720, 720],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "terms",
+              "value": "By registering, you agree that all information you provide is accurate and complete. You consent to the processing of your personal and medical data for healthcare purposes in compliance with privacy regulations. You may withdraw consent or request deletion of your data at any time."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9",
+      "name": "If User Accepts Terms",
+      "type": "n8n-nodes-base.if",
+      "position": [960, 720],
+      "parameters": {
+        "conditions": {
+          "boolean": [],
+          "number": [],
+          "string": [
+            {
+              "value1": "={{$json.accept_terms}}",
+              "operation": "equal",
+              "value2": "yes"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "10",
+      "name": "Insert Into Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1200, 720],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO patients (first_name, last_name, email, password_hash) VALUES ('{{$json.first_name}}', '{{$json.last_name}}', '{{$json.email}}', md5('default_password'));"
+      },
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": "Postgres"
+        }
+      }
+    },
+    {
+      "id": "11",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "position": [1440, 720],
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "status", "value": "success" },
+            { "name": "message", "value": "Registration successful!" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "12",
+      "name": "Decline Terms Response",
+      "type": "n8n-nodes-base.set",
+      "position": [1200, 900],
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "status", "value": "cancelled" },
+            { "name": "message", "value": "Registration cancelled by user." }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "1": { "main": [[{ "node": "2", "type": "main", "index": 0 }]] },
+    "2": { "main": [[{ "node": "3", "type": "main", "index": 0 }]] },
+    "3": { "main": [[{ "node": "4", "type": "main", "index": 0 }]] },
+    "5": { "main": [[{ "node": "6", "type": "main", "index": 0 }]] },
+    "6": { "main": [
+      [{ "node": "8", "type": "main", "index": 0 }],
+      [{ "node": "7", "type": "main", "index": 0 }]
+    ] },
+    "9": { "main": [
+      [{ "node": "10", "type": "main", "index": 0 }],
+      [{ "node": "12", "type": "main", "index": 0 }]
+    ] },
+    "10": { "main": [[{ "node": "11", "type": "main", "index": 0 }]] },
+    "8": { "main": [[{ "node": "9", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": {},
+  "version": 2
+}

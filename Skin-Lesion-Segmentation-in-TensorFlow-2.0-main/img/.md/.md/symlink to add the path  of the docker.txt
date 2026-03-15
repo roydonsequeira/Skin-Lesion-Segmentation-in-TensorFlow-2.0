@@ -1,0 +1,25 @@
+http://localhost:5678
+
+New-Item -ItemType SymbolicLink `
+  -Path "C:\Windows\System32\docker-credential-desktop.exe" `
+  -Target "C:\Program Files\Docker\Docker\resources\bin\docker-credential-desktop.exe"
+
+docker run -d --name ollama -p 11434:11434 -v ollama:/root/.ollama ollama/ollama:latest
+
+docker ps
+docker exec -it ollama ollama pull gemma3:4b
+
+docker network create ai-net---- this is for if ollama and n8n are not connected with each other[n8n container is NOT on the same Docker network as the ollama container] 
+
+docker network connect ai-net n8n
+docker network connect ai-net ollama
+docker exec -it n8n wget -qO- http://ollama:11434/api/tags
+
+
+  if this doesn't work 
+
+docker exec -it n8n sh -c "apt update && apt install -y curl"
+docker exec -it n8n curl http://ollama:11434/api/tags
+
+
+http://ollama:11434
