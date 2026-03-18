@@ -37,7 +37,7 @@ Skin lesion segmentation is a key step in computer-aided diagnosis (CAD) for mel
 
 | **Input image** | **Ground truth mask** |
 |:----------------|:----------------------|
-| ![Sample input](img/image.jpg) | ![Sample mask](img/mask.png) |
+| ![Sample input](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/img/image.jpg) | ![Sample mask](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/img/mask.png) |
 
 ---
 
@@ -120,21 +120,17 @@ Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/
 
 Classic U-Net: symmetric encoder–decoder with skip connections. Encoder: 4 blocks (64→128→256→512 channels) with max pooling. Bottleneck: 1024 channels. Decoder: upsampling + skip concatenation + convolutions. Output: 1 channel (binary mask).
 
-| ![U-Net architecture](UNET/img/u-net-architecture.png) |
-|:--------------------------------------------------------:|
+| ![U-Net architecture](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/UNET/img/u-net-architecture.png) |
+|:--------------------------------------------------------------------------------------------------------:|
 | *U-Net architecture (from [original paper](https://arxiv.org/abs/1505.04597))* |
-
-*Place the file `u-net-architecture.png` in `UNET/img/` if you have a diagram.*
 
 ### ResU-Net (TensorFlow 2.0)
 
 ResU-Net adds **residual blocks** inside the U-Net: each block has two 3×3 convs with batch norm and ReLU, plus a 1×1 shortcut. Encoder: 64→128→256, bridge 512, decoder 256→128→64. Final 1×1 conv with sigmoid for binary segmentation.
 
-| ![ResU-Net architecture](RESUNET/img/RESUNET_ARCH.png) |
-|:------------------------------------------------------:|
+| ![ResU-Net architecture](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/RESUNET/img/RESUNET_ARCH.png) |
+|:--------------------------------------------------------------------------------------------------------:|
 | *ResU-Net architecture (from [paper](https://arxiv.org/pdf/1711.10684.pdf))* |
-
-*Place the file `RESUNET_ARCH.png` in `RESUNET/img/` if you have a diagram.*
 
 ---
 
@@ -143,7 +139,7 @@ ResU-Net adds **residual blocks** inside the U-Net: each block has two 3×3 conv
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Skin-Lesion-Segmentation-in-TensorFlow-2.0.git
+git clone https://github.com/roydonsequeira/Skin-Lesion-Segmentation-in-TensorFlow-2.0.git
 cd Skin-Lesion-Segmentation-in-TensorFlow-2.0
 ```
 
@@ -273,12 +269,10 @@ Each row: **Input image | Ground truth mask | Predicted mask**
 
 | Input / GT / Prediction |
 |:-----------------------:|
-| ![Result 1](UNET/results/ISIC_0000012.jpg) |
-| ![Result 2](UNET/results/ISIC_0000016.jpg) |
-| ![Result 3](UNET/results/ISIC_0000018.jpg) |
-| ![Result 4](UNET/results/ISIC_0000019.jpg) |
-
-*Add your own result images under `UNET/results/` or `RESUNET/results/` and reference them here. The names above match the existing README placeholders.*
+| ![Result 1](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/RESUNET/results/ISIC_0000012.jpg) |
+| ![Result 2](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/RESUNET/results/ISIC_0000016.jpg) |
+| ![Result 3](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/RESUNET/results/ISIC_0000018.jpg) |
+| ![Result 4](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/RESUNET/results/ISIC_0000019.jpg) |
 
 ---
 
@@ -288,7 +282,7 @@ Each row: **Input image | Ground truth mask | Predicted mask**
 
 | Original image | Ground truth mask |
 |:--------------:|:-----------------:|
-| ![Input](img/image.jpg) | ![Mask](img/mask.png) |
+| ![Input](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/img/image.jpg) | ![Mask](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/img/mask.png) |
 
 ### 2. Streamlit app (U-Net)
 

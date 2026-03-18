@@ -65,10 +65,12 @@ logs/
 tensorboard/
 runs/
 files/
-results/
 customs/
 *.csv
 !requirements*.txt
+
+# Allow sample result images (keep results/ tracked for demo images)
+# results/    ← intentionally not ignored so demo images are visible on GitHub
 
 # OS
 .DS_Store
