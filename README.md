@@ -4,6 +4,7 @@
 [![TensorFlow 2.x](https://img.shields.io/badge/TensorFlow-2.x-orange.svg)](https://www.tensorflow.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.x+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub](https://img.shields.io/badge/GitHub-roydonsequeira%2FSkin--Lesion--Segmentation-black?logo=github)](https://github.com/roydonsequeira/Skin-Lesion-Segmentation-in-TensorFlow-2.0)
 
 **Semantic segmentation of skin lesions** on the **ISIC 2018** dataset using deep learning. This repository implements **U-Net** (PyTorch) and **ResU-Net** (TensorFlow 2.0) for automated lesion boundary detection to support dermatological analysis.
 
