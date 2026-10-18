@@ -88,3 +88,6 @@ temp/
 *.tmp
 *.bak
 *.backup
+
+# VS Code Code Runner scratch file
+tempCodeRunnerFile.py

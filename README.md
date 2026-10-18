@@ -8,11 +8,14 @@
 
 **Semantic segmentation of skin lesions** on the **ISIC 2018** dataset using deep learning. This repository implements **U-Net** (PyTorch) and **ResU-Net** (TensorFlow 2.0) for automated lesion boundary detection to support dermatological analysis.
 
+> **Built on [nikhilroxtomar/Skin-Lesion-Segmentation-in-TensorFlow-2.0](https://github.com/nikhilroxtomar/Skin-Lesion-Segmentation-in-TensorFlow-2.0)** by Nikhil Tomar. The ResU-Net code is his, unchanged; see [Credits](#-credits) for exactly what is original to this repository.
+
 ---
 
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Credits](#-credits)
 - [Features](#-features)
 - [Dataset](#-dataset)
 - [Project Structure](#-project-structure)
@@ -39,6 +42,21 @@ Skin lesion segmentation is a key step in computer-aided diagnosis (CAD) for mel
 | **Input image** | **Ground truth mask** |
 |:----------------|:----------------------|
 | ![Sample input](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/img/image.jpg) | ![Sample mask](Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/img/mask.png) |
+
+---
+
+## 🧾 Credits
+
+This final-year project started from Nikhil Tomar's TensorFlow 2.0 implementation, [nikhilroxtomar/Skin-Lesion-Segmentation-in-TensorFlow-2.0](https://github.com/nikhilroxtomar/Skin-Lesion-Segmentation-in-TensorFlow-2.0). Here is what came from it and what was added:
+
+| Part | Source |
+|---|---|
+| `RESUNET/` (`model.py`, `train.py`, `eval.py`, `metrics.py`) | From the upstream repository, unchanged |
+| `README.md`, the sample image and mask, both architecture diagrams, and the four ResU-Net result images in `RESUNET/results/` | From the upstream repository |
+| `UNET/model.py`, `train.py`, `eval.py`, `metrics.py` | Ported from the upstream TensorFlow/Keras U-Net to PyTorch; the data loading follows the upstream scripts |
+| `UNET/app.py`, `app2.py`, `appx.py` | Added: Streamlit demo that segments an uploaded image and reports the lesion's bounding box and area |
+| `UNET/loss.py`, `visualization.py`, `roc-auc.py` | Added: training-loss, metric and ROC-AUC plots |
+| This README and the requirements files | Added |
 
 ---
 
@@ -85,7 +103,7 @@ your_dataset_path/
 
 ```
 Skin-Lesion-Segmentation-in-TensorFlow-2.0-main/
-├── README.md                 # This file
+├── README.md                 # Upstream project README
 ├── requirements.txt          # Python dependencies
 ├── img/                      # Sample images for README
 │   ├── image.jpg             # Sample input
@@ -266,7 +284,7 @@ Training uses **Dice-based loss** (and BCE for U-Net). You can compare runs via 
 
 ### Example result layout (from evaluation)
 
-Each row: **Input image | Ground truth mask | Predicted mask**
+Each row: **Input image | Ground truth mask | Predicted mask**. These four ResU-Net predictions come from the upstream repository.
 
 | Input / GT / Prediction |
 |:-----------------------:|
@@ -326,6 +344,7 @@ Each row: **Input image | Ground truth mask | Predicted mask**
 
 ## 🙏 Acknowledgments
 
+- **Nikhil Tomar** — [Skin-Lesion-Segmentation-in-TensorFlow-2.0](https://github.com/nikhilroxtomar/Skin-Lesion-Segmentation-in-TensorFlow-2.0), the TensorFlow implementation this project is built on
 - **ISIC** — [International Skin Imaging Collaboration](https://www.isic-archive.com/) and ISIC 2018 challenge organizers
 - **U-Net** — [Ronneberger et al.](https://arxiv.org/abs/1505.04597)
 - **ResU-Net** — [Zhang et al.](https://arxiv.org/pdf/1711.10684.pdf)
@@ -335,7 +354,7 @@ Each row: **Input image | Ground truth mask | Predicted mask**
 
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+The code original to this repository is licensed under the MIT License — see the [LICENSE](LICENSE) file for details. The upstream files listed in [Credits](#-credits) remain the work of their author; the upstream repository does not include a license file.
 
 ---
 
